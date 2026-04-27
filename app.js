@@ -1,174 +1,102 @@
-// Configuración
-const API_URL = 'https://script.google.com/macros/s/AKfycbx6iJCdxXdZoFETIGpUF1i1RJ9ImFHyTrjk7qfPL_WhrKPFk_LPn1wDktaBBTV6UnWZ/exec'; // ← Pega aquí tu URL
-let deferredPrompt;
+const API_URL = 'https://script.google.com/macros/s/AKfycbw0QeY-Oi7wF7k9pHqkabmaDlrrg5UuDMqEV2KlNAL96pap4Q0dRTiGxSx1WSkzRX-h/exec'; // PON AQUÍ TU URL
 
-// Inicialización
-document.addEventListener('DOMContentLoaded', () => {
+// Cargar cuando inicia
+window.onload = function() {
     loadGrades();
-    setupEventListeners();
-    registerServiceWorker();
-});
-
-// Event Listeners
-function setupEventListeners() {
-    document.getElementById('gradeForm').addEventListener('submit', handleSubmit);
     
-    // PWA install prompt
-    window.addEventListener('beforeinstallprompt', (e) => {
+    document.getElementById('gradeForm').onsubmit = async function(e) {
         e.preventDefault();
-        deferredPrompt = e;
-        document.getElementById('installPrompt').style.display = 'block';
-    });
-}
+        
+        const data = {
+            action: 'addGrade',
+            studentName: document.getElementById('studentName').value,
+            subject: document.getElementById('subjectSelect').value,
+            period: document.getElementById('periodSelect').value,
+            grade: document.getElementById('grade').value,
+            observations: document.getElementById('observations').value,
+            date: new Date().toLocaleDateString()
+        };
+        
+        const params = new URLSearchParams(data).toString();
+        
+        try {
+            const response = await fetch(API_URL + '?' + params);
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ Calificación guardada');
+                document.getElementById('gradeForm').reset();
+                loadGrades();
+            }
+        } catch (error) {
+            alert('Error: ' + error);
+        }
+    };
+};
 
-// Cargar calificaciones
-/*async function loadGrades() {
-    showLoading();
-    
-    try {
-        const response = await fetch(`${API_URL}?action=getGrades`);
-        const data = await response.json();
-        
-        if (data.grades) {
-            renderGrades(data.grades);
-            updateStatistics(data.grades);
-        }
-    } catch (error) {
-        showError('Error al cargar calificaciones');
-    }
-}*/
 async function loadGrades() {
-    showLoading();
-    
     try {
-        const response = await fetch(`${API_URL}?action=getGrades`);
+        const response = await fetch(API_URL + '?action=getGrades');
         const data = await response.json();
         
-        // 🔍 DIAGNÓSTICO: Ver datos crudos
-        console.log('Respuesta completa:', data);
-        console.log('Primer elemento:', data.grades?.[0]);
+        console.log('Datos recibidos:', data); // Ver en consola
         
-        if (data.grades) {
-            renderGrades(data.grades);
-            updateStatistics(data.grades);
-        } else {
-            console.error('No se recibieron grades:', data);
-        }
+        displayGrades(data.grades);
+        updateStats(data.grades);
     } catch (error) {
         console.error('Error:', error);
-        showError('Error al cargar calificaciones');
+        document.getElementById('gradesTableBody').innerHTML = 
+            '<tr><td colspan="6">Error al cargar datos</td></tr>';
     }
 }
 
-// Guardar calificación
-async function handleSubmit(e) {
-    e.preventDefault();
-    
-    const formData = {
-        action: 'addGrade',
-        studentName: document.getElementById('studentName').value,
-        subject: document.getElementById('subjectSelect').value,
-        period: document.getElementById('periodSelect').value,
-        grade: document.getElementById('grade').value,
-        observations: document.getElementById('observations').value,
-        date: new Date().toISOString()
-    };
-    
-    try {
-        const queryString = Object.entries(formData)
-            .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-            .join('&');
-        
-        const response = await fetch(`${API_URL}?${queryString}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('✅ Calificación guardada exitosamente');
-            document.getElementById('gradeForm').reset();
-            loadGrades();
-        } else {
-            showError(data.error || 'Error al guardar');
-        }
-    } catch (error) {
-        showError('Error de conexión');
-    }
-}
-
-// Eliminar calificación
-async function deleteGrade(rowIndex) {
-    if (!confirm('¿Estás seguro de eliminar esta calificación?')) return;
-    
-    try {
-        const response = await fetch(`${API_URL}?action=deleteGrade&rowIndex=${rowIndex}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('🗑️ Calificación eliminada');
-            loadGrades();
-        }
-    } catch (error) {
-        showError('Error al eliminar');
-    }
-}
-
-// Renderizar tabla
-// Renderizar tabla
-function renderGrades(grades) {
+function displayGrades(grades) {
     const tbody = document.getElementById('gradesTableBody');
     
-    // Debug: Ver qué datos llegan
-    console.log('Datos recibidos:', grades);
-    
     if (!grades || grades.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">📝 No hay calificaciones registradas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">No hay calificaciones</td></tr>';
         return;
     }
     
-    tbody.innerHTML = grades.map(grade => {
-        // Asegurarnos de que los campos existen
-        const studentName = grade.studentName || 'Sin nombre';
-        const subject = grade.subject || 'Sin materia';
-        const period = grade.period || 'Sin período';
-        const gradeValue = parseFloat(grade.grade) || 0;
-        const rowIndex = grade.rowIndex;
+    let html = '';
+    
+    for (let i = 0; i < grades.length; i++) {
+        const g = grades[i];
+        const grade = parseFloat(g.grade) || 0;
         
-        let status = '';
-        let badgeClass = '';
-        
-        if (gradeValue >= 70) {
-            status = '✅ Aprobado';
-            badgeClass = 'badge-success';
-        } else if (gradeValue >= 50) {
-            status = '⚠️ Regular';
-            badgeClass = 'badge-warning';
+        let status, color;
+        if (grade >= 70) {
+            status = 'Aprobado';
+            color = 'green';
+        } else if (grade >= 50) {
+            status = 'Regular';
+            color = 'orange';
         } else {
-            status = '❌ En Riesgo';
-            badgeClass = 'badge-danger';
+            status = 'En Riesgo';
+            color = 'red';
         }
         
-        return `
+        html += `
             <tr>
-                <td><strong>${studentName}</strong></td>
-                <td>${subject}</td>
-                <td>${period}</td>
-                <td><strong>${gradeValue.toFixed(1)}</strong></td>
-                <td><span class="badge ${badgeClass}">${status}</span></td>
+                <td>${g.studentName || ''}</td>
+                <td>${g.subject || ''}</td>
+                <td>${g.period || ''}</td>
+                <td style="color: ${color}; font-weight: bold;">${grade}</td>
+                <td><span style="background: ${color}; color: white; padding: 3px 8px; border-radius: 10px;">${status}</span></td>
                 <td>
-                    <button class="btn btn-danger" onclick="deleteGrade(${rowIndex})">
-                        🗑️
+                    <button onclick="deleteGrade(${g.rowIndex})" style="background: red; color: white; border: none; padding: 5px 10px; border-radius: 5px;">
+                        Eliminar
                     </button>
                 </td>
             </tr>
         `;
-    }).join('');
+    }
     
-    // Actualizar estadísticas
-    updateStatistics(grades);
+    tbody.innerHTML = html;
 }
 
-// Actualizar estadísticas
-function updateStatistics(grades) {
-    if (grades.length === 0) {
+function updateStats(grades) {
+    if (!grades || grades.length === 0) {
         document.getElementById('totalStudents').textContent = '0';
         document.getElementById('averageGrade').textContent = '0';
         document.getElementById('approvedCount').textContent = '0';
@@ -176,54 +104,29 @@ function updateStatistics(grades) {
         return;
     }
     
-    const gradeValues = grades.map(g => parseFloat(g.grade));
-    const total = grades.length;
-    const average = gradeValues.reduce((a, b) => a + b, 0) / total;
-    const approved = gradeValues.filter(g => g >= 70).length;
-    const failed = gradeValues.filter(g => g < 50).length;
+    const values = grades.map(g => parseFloat(g.grade) || 0);
+    const total = values.length;
+    const avg = values.reduce((a, b) => a + b, 0) / total;
+    const approved = values.filter(v => v >= 70).length;
+    const failed = values.filter(v => v < 50).length;
     
     document.getElementById('totalStudents').textContent = total;
-    document.getElementById('averageGrade').textContent = average.toFixed(1);
+    document.getElementById('averageGrade').textContent = avg.toFixed(1);
     document.getElementById('approvedCount').textContent = approved;
     document.getElementById('failedCount').textContent = failed;
 }
 
-// Utilidades
-function showLoading() {
-    document.getElementById('gradesTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;"><div class="spinner"></div></td></tr>';
-}
-
-function showError(message) {
-    alert('Error: ' + message);
-}
-
-function showNotification(message) {
-    // Notificación simple (puedes mejorar con Toast)
-    alert(message);
-}
-
-// PWA Installation
-function installApp() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((result) => {
-            if (result.outcome === 'accepted') {
-                console.log('App instalada');
-            }
-            deferredPrompt = null;
-            document.getElementById('installPrompt').style.display = 'none';
-        });
-    }
-}
-
-// Service Worker para modo offline
-async function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        try {
-            await navigator.serviceWorker.register('service-worker.js');
-            console.log('Service Worker registrado');
-        } catch (error) {
-            console.log('Service Worker no registrado:', error);
+async function deleteGrade(rowIndex) {
+    if (!confirm('¿Eliminar esta calificación?')) return;
+    
+    try {
+        const response = await fetch(API_URL + '?action=deleteGrade&rowIndex=' + rowIndex);
+        const data = await response.json();
+        
+        if (data.success) {
+            loadGrades();
         }
+    } catch (error) {
+        alert('Error al eliminar');
     }
 }
