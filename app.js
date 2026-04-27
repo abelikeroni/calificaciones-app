@@ -22,7 +22,7 @@ function setupEventListeners() {
 }
 
 // Cargar calificaciones
-async function loadGrades() {
+/*async function loadGrades() {
     showLoading();
     
     try {
@@ -34,6 +34,28 @@ async function loadGrades() {
             updateStatistics(data.grades);
         }
     } catch (error) {
+        showError('Error al cargar calificaciones');
+    }
+}*/
+async function loadGrades() {
+    showLoading();
+    
+    try {
+        const response = await fetch(`${API_URL}?action=getGrades`);
+        const data = await response.json();
+        
+        // 🔍 DIAGNÓSTICO: Ver datos crudos
+        console.log('Respuesta completa:', data);
+        console.log('Primer elemento:', data.grades?.[0]);
+        
+        if (data.grades) {
+            renderGrades(data.grades);
+            updateStatistics(data.grades);
+        } else {
+            console.error('No se recibieron grades:', data);
+        }
+    } catch (error) {
+        console.error('Error:', error);
         showError('Error al cargar calificaciones');
     }
 }
