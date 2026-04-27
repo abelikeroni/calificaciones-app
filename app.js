@@ -1,5 +1,5 @@
 // Configuración
-const API_URL = 'TU_URL_DE_GOOGLE_APPS_SCRIPT'; // ← Pega aquí tu URL
+const API_URL = 'https://script.google.com/macros/s/AKfycbwE5V93znMxOx2NVyfuG-WK29Xvf7LyvioHcbmMXMIGjHTRTN9gBmLR6SC0mQp7kiZN/exec'; // ← Pega aquí tu URL
 let deferredPrompt;
 
 // Inicialización
