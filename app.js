@@ -90,45 +90,58 @@ async function deleteGrade(rowIndex) {
 }
 
 // Renderizar tabla
+// Renderizar tabla
 function renderGrades(grades) {
     const tbody = document.getElementById('gradesTableBody');
     
-    if (grades.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No hay calificaciones registradas</td></tr>';
+    // Debug: Ver qué datos llegan
+    console.log('Datos recibidos:', grades);
+    
+    if (!grades || grades.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">📝 No hay calificaciones registradas</td></tr>';
         return;
     }
     
     tbody.innerHTML = grades.map(grade => {
-        const gradeValue = parseFloat(grade.grade);
+        // Asegurarnos de que los campos existen
+        const studentName = grade.studentName || 'Sin nombre';
+        const subject = grade.subject || 'Sin materia';
+        const period = grade.period || 'Sin período';
+        const gradeValue = parseFloat(grade.grade) || 0;
+        const rowIndex = grade.rowIndex;
+        
         let status = '';
         let badgeClass = '';
         
         if (gradeValue >= 70) {
-            status = 'Aprobado';
+            status = '✅ Aprobado';
             badgeClass = 'badge-success';
         } else if (gradeValue >= 50) {
-            status = 'Regular';
+            status = '⚠️ Regular';
             badgeClass = 'badge-warning';
         } else {
-            status = 'En Riesgo';
+            status = '❌ En Riesgo';
             badgeClass = 'badge-danger';
         }
         
         return `
             <tr>
-                <td><strong>${grade.studentName}</strong></td>
-                <td>${grade.subject}</td>
-                <td>${grade.period}</td>
+                <td><strong>${studentName}</strong></td>
+                <td>${subject}</td>
+                <td>${period}</td>
                 <td><strong>${gradeValue.toFixed(1)}</strong></td>
                 <td><span class="badge ${badgeClass}">${status}</span></td>
                 <td>
-                    <button class="btn btn-danger" onclick="deleteGrade(${grade.rowIndex})">
+                    <button class="btn btn-danger" onclick="deleteGrade(${rowIndex})">
                         🗑️
                     </button>
                 </td>
             </tr>
         `;
     }).join('');
+    
+    // Actualizar estadísticas
+    updateStatistics(grades);
 }
 
 // Actualizar estadísticas
